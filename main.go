@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/repeale/fp-go"
 )
 
 type Grade string
@@ -79,16 +81,15 @@ func createStudentFromRow(row []string) (student, error) {
 }
 
 func calculateGrade(students []student) []studentStat {
-	var studentStats []studentStat
-	for _, st := range students {
-		var ss studentStat
-		avg := float32(st.test1Score+st.test2Score+st.test3Score+st.test4Score) / 4
-		ss.student = st
-		ss.finalScore = avg
-		ss.grade = getGrade(avg)
-		studentStats = append(studentStats, ss)
-	}
-	return studentStats
+	grader := fp.Map(func(s student) studentStat {
+		fs := float32(s.test1Score+s.test2Score+s.test3Score+s.test4Score) / 4
+		return studentStat{
+			student:    s,
+			finalScore: fs,
+			grade:      getGrade(fs),
+		}
+	})
+	return grader(students)
 }
 
 func getGrade(score float32) Grade {
@@ -105,15 +106,13 @@ func getGrade(score float32) Grade {
 
 // EdgeCase - There could be multiple students with same finalScore
 func findOverallTopper(gradedStudents []studentStat) studentStat {
-	maxScore := float32(0)
-	var topper studentStat
-	for _, s := range gradedStudents {
-		if s.finalScore > maxScore {
-			maxScore = s.finalScore
-			topper = s
+	topperCalculator := fp.Reduce(func(max studentStat, curr studentStat) studentStat {
+		if curr.finalScore > max.finalScore {
+			max = curr
 		}
-	}
-	return topper
+		return max
+	}, studentStat{})
+	return topperCalculator(gradedStudents)
 }
 
 // EdgeCase - There could be multiple students with same finalScore per university
